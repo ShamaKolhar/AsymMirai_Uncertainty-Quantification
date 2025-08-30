@@ -1,4 +1,4 @@
-This project builds upon the AsymMirai framework for breast cancer risk prediction using mammographic asymmetry.
+This project builds upon the AsymMirai [https://github.com/jdonnelly36/AsymMirai] framework for breast cancer risk prediction using mammographic asymmetry.
 Originally developed as an extension of MIT Mirai model, AsymMirai leverages bilateral views (L-CC, R-CC, L-MLO, R-MLO) to compute asymmetry and predict breast cancer risk in the next 1–5 years.
 This fork adds Uncertainty Quantification (UQ) capability using:
 •	Monte Carlo Dropout (MC-Dropout)
