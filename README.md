@@ -15,8 +15,11 @@ Place these at **My Drive / dissertation** in Google Drive
 File Structure :
 
 MyDrive/
+
 └─ dissertation/
+
 ├─ AsymMirai-master/
+
 │ └─ AsymMirai-master/
 │ ├─ run_quantification.ipynb <- open this in Colab
 │ ├─ asymmetry_model/
