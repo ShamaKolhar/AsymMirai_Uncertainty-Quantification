@@ -17,27 +17,49 @@ File Structure :
 MyDrive/
 
 └─ dissertation/
+
 ├─ AsymMirai-master/
+
 │ └─ AsymMirai-master/
+
 │ ├─ run_quantification.ipynb <- open this in Colab
+
 │ ├─ asymmetry_model/
+
 │ ├─ configs/
+
 │ ├─ onconet/
+
 │ └─ ...
+
 ├─ datathon_tables/
+
 │ ├─ EMBED_metadata_with_dicom_paths.csv
+
 │ ├─ dicom_dataset.csv
+
 │ ├─ EMBED_OpenData_NUS_Datathon_metadata.csv
+
 │ ├─ EMBED_OpenData_NUS_Datathon_metadata_reduced.csv
+
 │ ├─ EMBED_OpenData_NUS_Datathon_clinical.csv
+
 │ └─ EMBED_OpenData_NUS_Datathon_clinical_reduced.csv
+
 ├─ training_preds/
+
 │ ├─ validation_mc_dropout_predictions.csv
+
 │ ├─ temp_mc_dropout_predictions.csv
+
 │ ├─ Basic_Statistics.csv
+
 │ ├─ hist_uncertainty.png
+
 │ ├─ confidence_vs_uncertainty.png
+
 │ └─ ambiguous_barplot.png
+
 └─ (optional) pngimages/  #converted DICOM→PNG
 
 **Note:** The CSV/PNG output files bundled in your archive were under  
