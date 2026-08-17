@@ -8,60 +8,6 @@ The purpose of this extension is to assess model trustworthiness, detect ambiguo
 Quick start: Open `run_quantification.ipynb` in Google Colab and **Run all**.  
 > To run without editing any code, place the folders exactly as shown below.
 
-## Folder placement (Google Drive)
-
-Place these at **My Drive / dissertation** in Google Drive
-
-File Structure :
-
-MyDrive/
-
-└─ dissertation/
-
-├─ AsymMirai-master/
-
-│ └─ AsymMirai-master/
-
-│ ├─ run_quantification.ipynb <- open this in Colab
-
-│ ├─ asymmetry_model/
-
-│ ├─ configs/
-
-│ ├─ onconet/
-
-│ └─ ...
-
-├─ datathon_tables/
-
-│ ├─ EMBED_metadata_with_dicom_paths.csv
-
-│ ├─ dicom_dataset.csv
-
-│ ├─ EMBED_OpenData_NUS_Datathon_metadata.csv
-
-│ ├─ EMBED_OpenData_NUS_Datathon_metadata_reduced.csv
-
-│ ├─ EMBED_OpenData_NUS_Datathon_clinical.csv
-
-│ └─ EMBED_OpenData_NUS_Datathon_clinical_reduced.csv
-
-├─ training_preds/
-
-│ ├─ validation_mc_dropout_predictions.csv
-
-│ ├─ temp_mc_dropout_predictions.csv
-
-│ ├─ Basic_Statistics.csv
-
-│ ├─ hist_uncertainty.png
-
-│ ├─ confidence_vs_uncertainty.png
-
-│ └─ ambiguous_barplot.png
-
-└─ (optional) pngimages/  #converted DICOM→PNG
-
 **Note:** The CSV/PNG output files bundled in your archive were under  
 > `AsymMirai_UQ/training_preds/training_preds/`. Move those files into  
 > `MyDrive/dissertation/training_preds/` (exact path) so the notebook finds them automatically.
