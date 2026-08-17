@@ -1,4 +1,4 @@
-# Readme for "AsymMirai: Interpretable Breast Cancer Risk Prediction from Mammograms"
+# AsymMirai: Interpretable Breast Cancer Risk Prediction from Mammograms
 
 # Introduction
 This repository was used to develop AsymMirai.
