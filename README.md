@@ -24,66 +24,54 @@ The overall goal is to investigate whether uncertainty estimation can make an in
 
 ## Quick Start
 
-The recommended way to run this project is through **Google Colab**.
+The project was developed and run in **Google Colab** (NVIDIA Tesla T4 GPU), with data stored in Google Drive and the EMBED DICOMs accessed from Amazon S3.
 
-Open:
+There are two parts to the pipeline:
 
-```text
-run_quantification.ipynb
-```
+| Step | Where | What it does |
+|------|-------|--------------|
+| 1. Preprocessing | `dissertation.ipynb` (repo root) | Mounts Drive, extracts DICOM metadata, matches converted PNGs to exam / view / laterality, and runs the AsymMirai model scripts |
+| 2. Uncertainty quantification | `AsymMirai/AsymMirai-master/asymmetry_model/` | MC Dropout + TTA inference and ambiguity flagging (`run_utils.py`, `run_model_in_merged_dataset.py`, `testing.py`) |
 
-and select:
-
-**Runtime → Run all**
-
-> **Important:** The notebook expects a specific Google Drive folder structure. To run without modifying the notebook paths, reproduce the folder structure described below.
+> **Important:** The notebook uses hard-coded Google Drive paths. To run it without editing paths, reproduce the Drive folder structure below.
 
 ---
 
-## Project Structure
+## Repository Structure
 
-The project expects the following structure inside Google Drive:
+```text
+AsymMirai_Uncertainty-Quantification/
+├── README.md
+├── dissertation.ipynb                  # Preprocessing + model run (Colab)
+└── AsymMirai/
+    └── AsymMirai-master/               # AsymMirai codebase (Donnelly et al.) with UQ additions
+        ├── requirements.txt
+        ├── onconet/                    # Mirai backbone code
+        └── asymmetry_model/
+            ├── run_utils.py            # S3 DICOM loading, TTA, MC Dropout, ambiguity logging  ← UQ code
+            ├── run_model_in_merged_dataset.py   # Runs UQ inference over the merged exam dataset
+            ├── testing.py              # Single-exam UQ sanity check
+            ├── mirai_localized_dif_head.py      # AsymMirai model
+            ├── asymmetry_metrics.py
+            └── train.py
+```
+
+---
+
+## Expected Google Drive Structure
 
 ```text
 My Drive/
 └── dissertation/
-    │
     ├── AsymMirai-master/
-    │   └── AsymMirai-master/
-    │       └── run_quantification.ipynb
-    │
-    ├── datathon_tables/
-    │   └── ...
-    │
-    ├── pngimages/
-    │   └── ...
-    │
-    ├── training_preds/
-    │   ├── validation_mc_dropout_predictions.csv
-    │   ├── Basic_Statistics.csv
-    │   ├── hist_uncertainty.png
-    │   ├── confidence_vs_uncertainty.png
-    │   └── ambiguous_barplot.png
-    │
-    └── images/
-        └── ...
+    │   └── AsymMirai-master/       # ← upload the repo's AsymMirai/AsymMirai-master/ folder here
+    │       └── asymmetry_model/
+    ├── dcmimages/
+    │   └── dcm/                    # DICOM files downloaded from EMBED
+    └── pngimages/                  # PNGs converted from the DICOMs
 ```
 
-### Existing output files
-
-The CSV/PNG output files included with the project were originally located under:
-
-```text
-AsymMirai_UQ/training_preds/training_preds/
-```
-
-Move these files into:
-
-```text
-MyDrive/dissertation/training_preds/
-```
-
-so that the notebook can find them using its existing paths.
+Note that the repo folder `AsymMirai/` must be renamed to `AsymMirai-master/` in Drive to match the notebook paths.
 
 ---
 
@@ -91,52 +79,35 @@ so that the notebook can find them using its existing paths.
 
 ### 1. Upload the project folders
 
-Upload the required folders to:
+Upload `AsymMirai/AsymMirai-master/` to `My Drive/dissertation/AsymMirai-master/` and place the DICOM and PNG images in `dcmimages/dcm/` and `pngimages/`, as shown above.
 
-```text
-My Drive/dissertation/
-```
+### 2. Run the preprocessing notebook
 
-while maintaining the directory structure described above.
-
-### 2. Open the notebook
-
-In Google Drive, navigate to:
-
-```text
-MyDrive/dissertation/AsymMirai-master/AsymMirai-master/run_quantification.ipynb
-```
-
-Right-click the notebook and select:
-
-**Open with → Google Colaboratory**
-
-### 3. Run the notebook
-
-In Google Colab, select:
-
-**Runtime → Run all**
-
-The notebook will:
+Open `dissertation.ipynb` in Colab and select **Runtime → Run all**. The notebook will:
 
 1. Mount Google Drive
-2. Load the required metadata from `datathon_tables/`
-3. Load the AsymMirai model
-4. Prepare the mammography inputs
-5. Run Monte Carlo Dropout
-6. Run Test-Time Augmentation
-7. Calculate prediction statistics and uncertainty
-8. Identify potentially ambiguous predictions
-9. Generate uncertainty visualisations
-10. Save the resulting files under:
+2. Install `pydicom`, `pypng` and the `pylibjpeg` decoders
+3. Count the converted PNG images
+4. Walk the DICOM folder and extract metadata (exam ID, view, laterality) into `dicom_metadata.csv`
+5. Match each PNG to its DICOM metadata
+6. Run `asymmetry_metrics.py` and `mirai_localized_dif_head.py`
+7. Add the AsymMirai code to the Python path and run `train.py`
 
-```text
-MyDrive/dissertation/training_preds/
+### 3. Run uncertainty quantification
+
+From `asymmetry_model/`, with AWS credentials configured (see **S3 configuration** below):
+
+```bash
+# Sanity check on a single exam
+python testing.py
+
+# Full UQ run over the merged exam dataset → /content/predictions_output.csv
+python run_model_in_merged_dataset.py
 ```
 
----
+Both scripts expect `final_exam_image_map.csv` (the exam-to-image mapping produced during preprocessing) in `asymmetry_model/`.
 
-# Uncertainty Quantification
+---
 
 ## Monte Carlo Dropout
 
@@ -154,7 +125,12 @@ Higher variation across stochastic predictions indicates greater model uncertain
 
 In this implementation, dropout was incorporated into the ResNet-18 backbone used by AsymMirai without retraining the original model.
 
----
+**Implementation** (`run_utils.py → predict_with_uncertainty`):
+
+* The model is put in `train()` mode so dropout stays active, while gradients are disabled with `torch.no_grad()`
+* **T = 30** stochastic forward passes per exam (four views: L-CC, R-CC, L-MLO, R-MLO)
+* Sigmoid outputs are stacked and summarised as the **mean** (prediction) and **standard deviation** (uncertainty)
+* An exam is flagged **ambiguous** when the maximum standard deviation exceeds **0.25**
 
 ## Test-Time Augmentation
 
@@ -167,6 +143,8 @@ The implemented augmentations include:
 * Gaussian blur
 * Brightness/contrast variation
 * Noise perturbations
+
+TTA is applied inside the same stochastic loop via `apply_tta` in `run_utils.py`, so each forward pass sees both dropout noise and a perturbed input.
 
 The model produces predictions for the augmented inputs, and the variation between these predictions is used as a measure of prediction sensitivity.
 
@@ -207,10 +185,11 @@ The original implementation uses Amazon S3 for accessing the DICOM data.
 
 ### S3 configuration
 
-The DICOM access code is already included in:
+The S3 access code is included in:
 
 ```text
-run_quantification.ipynb
+AsymMirai/AsymMirai-master/asymmetry_model/run_utils.py
+AsymMirai/AsymMirai-master/asymmetry_model/run_model_in_merged_dataset.py
 ```
 
 If you need to access the S3 data, configure your AWS credentials through a secure method such as environment variables or Google Colab Secrets.
@@ -226,11 +205,10 @@ import boto3
 s3 = boto3.client("s3")
 
 bucket_name = "embed-dataset-open"
-prefix = "images/cohort_1/"
-drive_root = "/content/drive/MyDrive/dissertation/images"
+prefix = "images/"
 ```
 
-The notebook then uses the S3 paginator to locate and download the required DICOM files.
+`run_model_in_merged_dataset.py` pages through the bucket listing to keep only exams whose DICOM keys exist, and `run_utils.py` streams each DICOM directly from S3 into memory for inference.
 
 ---
 
@@ -277,7 +255,7 @@ Only exams containing all four standard views are retained for bilateral asymmet
 
 # Outputs
 
-The uncertainty quantification pipeline generates the following outputs:
+The uncertainty quantification pipeline generates the following outputs. These are written to Google Drive at run time and are **not committed to this repository**.
 
 ### Prediction results
 
@@ -353,46 +331,23 @@ The project uses PyTorch for model execution and modification, Torchvision for i
 
 ---
 
-# Additional Files
-
-The repository/archive may also contain:
-
-```text
-EMBED_Open_Data-main/
-```
-
-This contains reference notebooks and documentation related to the EMBED dataset.
-
-It is **not required for the uncertainty quantification pipeline itself**, but can be useful for understanding the dataset and its organisation.
-
-A top-level:
-
-```text
-requirements.txt
-```
-
-is also provided for local execution.
-
-For Google Colab, the notebook installs the required dependencies through its setup cells.
-
----
-
 # Local Execution
 
-The project was primarily developed and tested using Google Colab.
+The project was primarily developed and tested using Google Colab, and the UQ scripts assume a CUDA GPU (`.cuda()` calls).
 
 For local execution:
 
 ```bash
-pip install -r requirements.txt
+pip install -r AsymMirai/AsymMirai-master/requirements.txt
 ```
 
-You will also need to update the Google Drive paths used in the notebook.
+You will also need to update the Google Drive paths used in the notebook and scripts.
 
 For example, paths such as:
 
 ```text
 /content/drive/MyDrive/dissertation/...
+/content/AsymMirai/AsymMirai-master/...
 ```
 
 must be replaced with paths corresponding to your local environment.
