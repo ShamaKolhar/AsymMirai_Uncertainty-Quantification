@@ -1,13 +1,13 @@
 """Image loading, normalisation, corruptions (robustness conditions) and paired TTA.
 
-Key fixes vs. the old `resize_and_normalize`:
-  * Images are read with IMREAD_UNCHANGED (16-bit), not IMREAD_GRAYSCALE (which silently
-    converts to 8-bit). An 8-bit PNG raises an error instead of producing a flat image.
-  * Corruptions are a *separate experimental condition* (clean is always evaluated too) and
-    are scaled to the 16-bit range, with deterministic per-exam seeds so every UQ method
+Design:
+  * Images are read with IMREAD_UNCHANGED (16-bit). IMREAD_GRAYSCALE would silently convert
+    to 8-bit, so an 8-bit PNG raises an error instead of producing a flat image.
+  * Corruptions are a separate experimental condition (clean is always evaluated too),
+    scaled to the 16-bit range, with deterministic per-exam seeds so every UQ method
     sees exactly the same corrupted image.
-  * TTA augmentations are applied identically to the left and right image of a pair, so they
-    cannot create artificial asymmetry (the old code flipped each view independently).
+  * TTA augmentations are applied identically to the left and right image of a pair:
+    independent augmentation would create artificial asymmetry in an asymmetry model.
 """
 from __future__ import annotations
 

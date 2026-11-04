@@ -1,11 +1,9 @@
 """Build the exam-level CSV AsymMirai expects (same columns as AsymMirai/example_data_format.csv).
 
-Fixes vs. the original notebook:
-  * Exams are grouped by accession number (`acc_anon`), not DICOM PatientID. PatientID is
-    the *patient*, so several exams from different years were merged and a "4-view exam"
-    could mix an L-CC from 2014 with an R-CC from 2019.
-  * Images are joined to EMBED metadata with a pandas merge on `anon_dicom_path`
-    (the old code ran `str.contains` per PNG, O(n^2), and could match the wrong file).
+Design:
+  * Exams are grouped by accession number (`acc_anon`), not DICOM PatientID: PatientID
+    identifies the patient, so grouping by it would merge exams from different years.
+  * Images are joined to EMBED metadata with a pandas merge on `anon_dicom_path`.
   * Only standard 2D screening views are kept: FinalImageType == '2D' (no synthetic
     C-view), no spot-compression/magnification views, ViewPosition in {CC, MLO}.
   * Labels: `years_to_cancer` (100 = no cancer, AsymMirai convention) and

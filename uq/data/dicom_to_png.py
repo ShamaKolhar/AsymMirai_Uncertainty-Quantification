@@ -1,15 +1,13 @@
 """Convert EMBED DICOMs to 16-bit PNGs in the format Mirai / AsymMirai expect.
 
-What changed vs. the original notebook (and why):
-  * 16-bit output. The old code min-max scaled every image to 8-bit (0-255), but the
-    model normalises with 16-bit statistics (mean 7699.5, std 11765.06). With 8-bit input
-    every pixel became ~ -0.65, i.e. a flat grey image.
+Design:
+  * 16-bit output. The model normalises with 16-bit statistics (mean 7699.5, std 11765.06),
+    so 8-bit images would collapse to a near-constant input.
   * Mirai's convention is DCMTK `dcmj2pnm +on2 --min-max-window`: a min-max window
-    mapped to the full 16-bit range. We reproduce that in pure Python.
+    mapped to the full 16-bit range. This is reproduced in pure Python (or use --use-dcmtk).
   * MONOCHROME1 images (bright = low value) are inverted so tissue is always bright.
-  * The output file name keeps the DICOM's relative path so it can be joined back to
-    the EMBED metadata table (`anon_dicom_path`) without fragile string matching.
-  * An index CSV (dicom path -> png path) is written so later steps use a merge, not a loop.
+  * Output paths mirror the DICOM's relative path so they join back to the EMBED metadata
+    table (`anon_dicom_path`) with a merge, and an index CSV (dicom -> png) is written.
 
 Usage:
     python -m uq.data.dicom_to_png --config configs/uq_config.yaml [--workers 4] [--use-dcmtk]

@@ -8,7 +8,7 @@ The same script:
   * builds deep-ensemble members  (--seeds 0 1 2 3 4: different init + bootstrap per seed)
   * fits the head for a new backbone (model.backbone: resnet18 | convnext_tiny) - Phase-4 extension.
     For new backbones asym_mean/std are first initialised from the data so the sigmoid isn't saturated
-    (an uninitialised 8,000,000 offset is what made every old prediction 0.00516).
+    (with an unfitted offset every exam would get the same saturated prediction).
 
 Training uses the `finetune` split (set split.finetune_fraction > 0 in the config and rebuild
 the metadata), so the calib/test patients are never seen.
