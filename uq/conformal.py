@@ -2,8 +2,8 @@
 
 Gives a distribution-free guarantee: on exchangeable data, the prediction set contains the
 true label with probability >= 1 - alpha. Sets are {0}, {1} or {0,1}; {0,1} = "the model
-can't decide at this confidence -> refer to a radiologist". This replaces a hand-picked
-variance threshold.
+can't decide at this confidence -> refer to a radiologist". It gives a principled alternative
+to a hand-picked variance threshold.
 
 Class-conditional (Mondrian) conformal is the default because cancer prevalence is ~1-2%:
 marginal conformal could reach 90% coverage while missing most cancers.

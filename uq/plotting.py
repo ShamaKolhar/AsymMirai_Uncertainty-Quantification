@@ -32,6 +32,6 @@ def style():
 
 
 def save(fig, path):
-    fig.savefig(path)   # save BEFORE anything else (the old code called show() first -> blank PNGs)
+    fig.savefig(path)   # always save before closing; never rely on show()
     plt.close(fig)
     return path

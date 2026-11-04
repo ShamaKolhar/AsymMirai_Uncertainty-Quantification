@@ -1,10 +1,8 @@
 """Loading trained AsymMirai weights into the UQ model.
 
-The released AsymMirai checkpoint (Duke box link in AsymMirai/README.md) is a *fully pickled*
-`LocalizedDifModel` saved with `torch.save(model, ...)`. Unpickling it needs the ORIGINAL
-class definition, which is why the original AsymMirai code is restored unmodified in ./AsymMirai
-(the old project had overwritten `mirai_localized_dif_head.py`, so the released weights could
-not be loaded, and the model silently ran with an untrained head on an ImageNet ResNet-18).
+The released AsymMirai checkpoint (Duke box link in AsymMirai/README.md) is a fully pickled
+`LocalizedDifModel` saved with `torch.save(model, ...)`. Unpickling it needs the original
+class definition, which is why the original AsymMirai code is vendored unmodified in ./AsymMirai.
 
 We read the trained pieces off the pickled object (Mirai backbone, CC/MLO stretch matrices,
 learned asymmetry mean/std, pooling settings) and copy them into `UQAsymMirai`.
@@ -124,7 +122,7 @@ def load_model(cfg, checkpoint: str | None = None, device=None) -> UQAsymMirai:
             raise FileNotFoundError(
                 f"Trained AsymMirai weights not found at {full}. Download them from the link in "
                 "AsymMirai/README.md ('Our trained AsymMirai weights are available here'). "
-                "Running without them gives a constant prediction (the bug in the old results)."
+                "Running without them gives a constant prediction."
             )
         m = from_original_model(_torch_load(full), hd, bd)
     else:

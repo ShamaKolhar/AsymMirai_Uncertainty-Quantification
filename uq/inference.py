@@ -3,13 +3,13 @@
 Methods (configurable in uq.methods):
   deterministic  - one pass, dropout off, no TTA (always computed; the reference prediction)
   mc_dropout     - K passes with paired head dropout. The backbone is run ONCE per exam and the
-                   dropout samples are drawn on the cached embeddings (~K x faster than before).
+                   dropout samples are drawn on the cached embeddings (~K x cheaper than re-running the backbone).
   tta            - K passes with paired (same for left/right) small affine + contrast jitter
   mc_tta         - K passes with both
   ensemble       - one pass per ensemble member head (paths.weights.ensemble_members)
 
 Conditions (uq.conditions): `clean` first, then each corruption as its own condition, so
-robustness is a separate experiment instead of contaminating every result.
+robustness is measured as a separate experiment.
 
 Outputs in <outputs>/<run_name>/:
   samples_<condition>.npz       raw per-sample probabilities for every method (for any later metric)

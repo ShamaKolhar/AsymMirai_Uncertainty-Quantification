@@ -1,6 +1,4 @@
 # Tested with Python 3.10-3.13. On Colab, torch/torchvision are pre-installed - don't reinstall them.
-# The old file pinned torch==1.2.0 while the code used torchvision's ResNet18_Weights API (needs >=0.13),
-# so the two could never have been installed together.
 torch>=2.0
 torchvision>=0.15
 numpy>=1.24

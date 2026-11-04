@@ -1,8 +1,7 @@
 """Risk-prediction and uncertainty metrics.
 
-Replaces the old "95th-percentile of variance = ambiguous" rule (which flags exactly 5% of
-cases by construction, whatever the model does) with metrics that test whether the
-uncertainty is *useful*:
+These test whether the uncertainty is *useful*, rather than flagging a fixed percentile
+of cases (which would mark the same fraction as "ambiguous" whatever the model does):
   * discrimination: AUC at 1-5 year horizons (bootstrap 95% CI), Harrell's C-index
   * calibration: ECE (equal-frequency bins - prevalence is low), Brier score, reliability curve
   * selective prediction: risk-coverage curves (does AUC/Brier improve as uncertain cases are referred?)
