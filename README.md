@@ -60,12 +60,34 @@ Everything is reported on the held-out `test` split:
 
 ## Status
 
-- ✅ **Pipeline complete and tested.** 9 tests pass on CPU, including a full end-to-end run on synthetic 16-bit DICOMs: conversion → labels → head fine-tuning → all four UQ methods → evaluation and figures.
+- ✅ **Pipeline complete and tested.** 12 tests pass on CPU, including a full end-to-end run on synthetic 16-bit DICOMs: conversion → labels → head fine-tuning → all four UQ methods → evaluation and figures. A further test covers the free-tier path, including an interrupted and resumed run.
 - ⏳ **Real-data evaluation on EMBED in progress.** Results will be added here.
 
 ---
 
-## Quick start (Google Colab)
+## Quick start: free GPU (free Colab or Kaggle)
+
+No paid GPU is needed. [`notebooks/free_tier_run.ipynb`](notebooks/free_tier_run.ipynb) runs the full evaluation on an **enriched case-control subset**: every cancer case (up to 100) plus 3 age-matched controls each, about 400 exams.
+
+1. Plan the exams from the EMBED tables, before downloading anything.
+2. Download only those ~1,600 images.
+3. Store the PNGs at the model's input size, deleting each DICOM once it's converted.
+4. Run inference in chunks of 25 exams. After a disconnect, re-running the cell resumes and gives identical results.
+
+Settings are in [`configs/free_tier.yaml`](configs/free_tier.yaml).
+
+```bash
+python -m uq.data.build_metadata --config configs/free_tier.yaml --plan   # exam table from the EMBED tables
+python -m uq.data.select_subset  --config configs/free_tier.yaml          # cases + matched controls
+python -m uq.data.download_embed --config configs/free_tier.yaml --exam-csv
+python -m uq.data.dicom_to_png   --config configs/free_tier.yaml
+python -m uq.inference           --config configs/free_tier.yaml          # re-run the same line to resume
+python -m uq.evaluate            --config configs/free_tier.yaml --run outputs/free_run
+```
+
+Because the subset is enriched, AUC, C-index, risk–coverage and uncertainty-vs-error are valid, but calibration and conformal set sizes reflect the enriched prevalence. The report flags this.
+
+## Quick start: full dataset (Google Colab)
 
 1. Clone this repo into Google Drive, e.g. `MyDrive/dissertation/AsymMirai_Uncertainty-Quantification`.
 2. Download the **trained AsymMirai weights** (link in [`AsymMirai/README.md`](AsymMirai/README.md)) to `MyDrive/dissertation/weights/asymmirai_full_model.pt`.
@@ -100,21 +122,26 @@ All settings are in [`configs/uq_config.yaml`](configs/uq_config.yaml): paths, s
 │   ├── data/
 │   │   ├── download_embed.py     # S3 download (credentials from env / Colab Secrets)
 │   │   ├── dicom_to_png.py       # 16-bit PNG conversion, MONOCHROME1 handling
-│   │   └── build_metadata.py     # exam grouping, labels, patient-level split
+│   │   ├── build_metadata.py     # exam grouping, labels, patient-level split
+│   │   └── select_subset.py      # enriched case-control subset for free-tier runs
 │   ├── preprocessing.py       # 16-bit loading, corruptions, paired TTA
 │   ├── dataset.py             # 4-view exam dataset
 │   ├── models/
 │   │   ├── uq_asymmirai.py    # UQ-ready AsymMirai: paired dropout, Mirai/ResNet/ConvNeXt backbones
 │   │   └── loading.py         # loads the released AsymMirai weights
-│   ├── inference.py           # MC Dropout / TTA / MC+TTA / ensemble × clean + corrupted inputs
+│   ├── inference.py           # MC Dropout / TTA / MC+TTA / ensemble × clean + corrupted inputs (resumable)
 │   ├── finetune_head.py       # dropout-trained heads, ensemble members, new-backbone heads
 │   ├── metrics.py             # AUC (CI), C-index, ECE, Brier, risk–coverage, subgroups
 │   ├── conformal.py           # class-conditional split conformal prediction
 │   ├── evaluate.py            # report, metrics, figures
 │   └── plotting.py            # figure style
 ├── AsymMirai/                 # third-party: original AsymMirai code (Donnelly et al., MIT), vendored unmodified
-├── configs/uq_config.yaml
-├── notebooks/run_quantification.ipynb
+├── configs/
+│   ├── uq_config.yaml         # full run
+│   └── free_tier.yaml         # free GPU: enriched subset, lighter settings
+├── notebooks/
+│   ├── free_tier_run.ipynb    # free Colab / Kaggle
+│   └── run_quantification.ipynb
 ├── app/streamlit_app.py       # demo: per-exam risk, uncertainty, referral flag
 └── tests/                     # unit tests + synthetic end-to-end test
 ```

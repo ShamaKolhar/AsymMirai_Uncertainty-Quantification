@@ -50,10 +50,20 @@ def _deep_update(base: dict, upd: dict) -> dict:
     return base
 
 
+def _read_yaml(path: Path) -> dict:
+    """Read a YAML config; a top-level `extends: other.yaml` loads that file first and overlays this one."""
+    with open(path) as f:
+        cfg = yaml.safe_load(f) or {}
+    parent = cfg.pop("extends", None)
+    if parent:
+        parent_path = (path.parent / parent).resolve()
+        cfg = _deep_update(_read_yaml(parent_path), cfg)
+    return cfg
+
+
 def load_config(path: str | os.PathLike | None = None, overrides: dict | None = None) -> Config:
     path = Path(path) if path else DEFAULT_CONFIG
-    with open(path) as f:
-        cfg = yaml.safe_load(f)
+    cfg = _read_yaml(path)
     if overrides:
         cfg = _deep_update(copy.deepcopy(cfg), overrides)
     return Config(cfg)

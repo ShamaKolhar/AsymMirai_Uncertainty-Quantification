@@ -12,7 +12,7 @@ from uq.preprocessing import Preprocessor
 
 VIEW_KEYS = ["L-CC", "R-CC", "L-MLO", "R-MLO"]
 EXAM_COLS = ["exam_id", "patient_id", "years_to_cancer", "years_to_last_followup", "split",
-             "age_at_study", "race", "tissueden", "study_date"]
+             "age_at_study", "race", "tissueden", "study_date", "enriched"]
 
 
 def exams_wide(df_long: pd.DataFrame) -> pd.DataFrame:

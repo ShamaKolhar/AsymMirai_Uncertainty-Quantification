@@ -11,6 +11,7 @@ Design:
 
 Usage:
     python -m uq.data.dicom_to_png --config configs/uq_config.yaml [--workers 4] [--use-dcmtk]
+    python -m uq.data.dicom_to_png --config configs/free_tier.yaml   # resizes to model size, deletes DICOMs
 """
 from __future__ import annotations
 
@@ -49,7 +50,7 @@ def png_path_for(dicom_path: Path, dicom_root: Path, png_root: Path) -> Path:
 
 
 def _convert_one(args) -> tuple[str, str, str | None]:
-    dcm_path, dicom_root, png_root, use_dcmtk, overwrite = args
+    dcm_path, dicom_root, png_root, use_dcmtk, overwrite, resize_to, delete_dicom = args
     import pydicom
 
     dcm_path, dicom_root, png_root = Path(dcm_path), Path(dicom_root), Path(png_root)
@@ -64,20 +65,34 @@ def _convert_one(args) -> tuple[str, str, str | None]:
         else:
             ds = pydicom.dcmread(str(dcm_path))
             arr = dicom_to_uint16(ds)
-            if not cv2.imwrite(str(out), arr):
+            if resize_to:  # store at the model's input size (H, W): ~5-10x smaller files
+                arr = cv2.resize(arr, (int(resize_to[1]), int(resize_to[0])), interpolation=cv2.INTER_LINEAR)
+            tmp = out.with_name(out.stem + ".tmp.png")
+            if not cv2.imwrite(str(tmp), arr):
                 raise IOError("cv2.imwrite failed")
+            tmp.replace(out)
+        if delete_dicom:
+            dcm_path.unlink(missing_ok=True)  # PNG written successfully -> free the space
         return str(dcm_path), str(out), None
     except Exception as e:  # keep going, report at the end
         return str(dcm_path), "", f"{type(e).__name__}: {e}"
 
 
-def convert_all(cfg, workers: int = 4, use_dcmtk: bool = False, overwrite: bool = False) -> pd.DataFrame:
+def convert_all(cfg, workers: int = 4, use_dcmtk: bool = False, overwrite: bool = False,
+                resize_to_model: bool | None = None, delete_dicom: bool | None = None) -> pd.DataFrame:
+    """resize_to_model / delete_dicom default to the `convert` section of the config (free tier: both on)."""
+    conv = cfg.get("convert", {}) or {}
+    resize_to_model = conv.get("resize_to_model", False) if resize_to_model is None else resize_to_model
+    delete_dicom = conv.get("delete_dicom", False) if delete_dicom is None else delete_dicom
+    resize_to = tuple(cfg["preprocessing"]["target_size"]) if resize_to_model else None
+    if use_dcmtk and (resize_to or delete_dicom):
+        raise ValueError("--use-dcmtk cannot be combined with resize_to_model / delete_dicom")
     dicom_root, png_root = cfg.path("dicom_dir"), cfg.path("png_dir")
     if use_dcmtk and shutil.which("dcmj2pnm") is None:
         raise RuntimeError("dcmj2pnm not found; install dcmtk (apt-get install dcmtk) or drop --use-dcmtk")
     paths = sorted(dicom_root.rglob("*.dcm"))
     print(f"Found {len(paths)} DICOMs under {dicom_root}")
-    jobs = [(str(p), str(dicom_root), str(png_root), use_dcmtk, overwrite) for p in paths]
+    jobs = [(str(p), str(dicom_root), str(png_root), use_dcmtk, overwrite, resize_to, delete_dicom) for p in paths]
     rows = []
     if workers > 1:
         with ProcessPoolExecutor(workers) as ex:
@@ -86,11 +101,16 @@ def convert_all(cfg, workers: int = 4, use_dcmtk: bool = False, overwrite: bool 
     else:
         rows = [_convert_one(j) for j in tqdm(jobs)]
     df = pd.DataFrame(rows, columns=["dicom_path", "png_path", "error"])
-    # EMBED's metadata stores paths like images/cohort_1/<empi>/<study>/<series>/<sop>.dcm
-    prefix = cfg["download"]["prefix"]
-    df["anon_dicom_path"] = [prefix + str(Path(p).relative_to(dicom_root)) for p in df["dicom_path"]]
+    # EMBED's metadata stores paths like images/cohort_1/<empi>/<study>/<series>/<sop>.dcm;
+    # local DICOMs live at dicom_dir/<that path minus path_root>
+    root = cfg["download"].get("path_root", "images/")
+    df["anon_dicom_path"] = [root + Path(p).relative_to(dicom_root).as_posix() for p in df["dicom_path"]]
     out_csv = cfg.path("image_index_csv")
     out_csv.parent.mkdir(parents=True, exist_ok=True)
+    if out_csv.exists():  # keep earlier sessions' rows (their DICOMs may have been deleted after conversion)
+        old = pd.read_csv(out_csv)
+        old = old[~old["anon_dicom_path"].isin(df["anon_dicom_path"]) & old["error"].isna()]
+        df = pd.concat([old, df], ignore_index=True)
     df.to_csv(out_csv, index=False)
     n_err = df["error"].notna().sum()
     print(f"Converted {len(df) - n_err} / {len(df)} files. Index written to {out_csv}")
@@ -105,8 +125,13 @@ def main():
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--use-dcmtk", action="store_true", help="use DCMTK dcmj2pnm exactly like Mirai")
     ap.add_argument("--overwrite", action="store_true")
+    ap.add_argument("--resize-to-model", action="store_true", default=None,
+                    help="store PNGs at preprocessing.target_size (much smaller; the model resizes to this anyway)")
+    ap.add_argument("--delete-dicom", action="store_true", default=None,
+                    help="delete each DICOM after its PNG is written (saves disk on free tiers)")
     args = ap.parse_args()
-    convert_all(load_config(args.config), args.workers, args.use_dcmtk, args.overwrite)
+    convert_all(load_config(args.config), args.workers, args.use_dcmtk, args.overwrite,
+                args.resize_to_model, args.delete_dicom)
 
 
 if __name__ == "__main__":
