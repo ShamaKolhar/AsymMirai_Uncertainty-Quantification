@@ -107,7 +107,7 @@ P(cancer) = 0.005159 (std 2.6e-9 across 1,422 exams). That value is exactly
 
 | # | v2 |
 |---|---|
-| 12 | AWS keys removed from code and README; read from env / Colab Secrets (`.env.example`). **The old keys were published and must be revoked.** |
+| 12 | No credentials in code: AWS keys are read from environment variables or Colab Secrets (`.env.example`). |
 | 13 | EMBED data no longer shipped (`.gitignore`); access instructions instead. |
 | 14 | Figures saved before closing (v1 called `show()` before `savefig()`, giving blank PNGs); consistent, colour-blind-checked style. |
 | 15 | `train.py` (which only did inference) split into `inference.py`, `finetune_head.py` and `evaluate.py`; YAML config instead of hard-coded Drive paths; seeds everywhere; merge instead of an O(n²) `str.contains` loop; device-agnostic (CPU/GPU). |
