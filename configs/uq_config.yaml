@@ -1,0 +1,82 @@
+# Central configuration for the AsymMirai-UQ pipeline.
+# Every path below is relative to `root` unless it is absolute.
+# `root` can be overridden with the environment variable ASYMMIRAI_UQ_ROOT
+# (e.g. /content/drive/MyDrive/dissertation on Colab).
+
+root: .
+seed: 42
+
+paths:
+  dicom_dir: data/images            # raw DICOMs downloaded from S3
+  png_dir: data/png16               # 16-bit PNGs written by uq.data.dicom_to_png
+  clinical_csv: data/tables/EMBED_OpenData_NUS_Datathon_clinical_reduced.csv
+  metadata_csv: data/tables/EMBED_OpenData_NUS_Datathon_metadata_reduced.csv
+  image_index_csv: data/tables/dicom_index.csv   # written by dicom_to_png
+  exam_csv: data/tables/asymmirai_exams.csv      # written by build_metadata (example_data_format.csv layout)
+  weights:
+    # Trained AsymMirai model (full pickled torch model, from the Duke box link in AsymMirai/README.md)
+    asymmirai_full_model: weights/asymmirai_full_model.pt
+    # Mirai backbone snapshot (only needed if you train / fine-tune from scratch)
+    mirai_snapshot: weights/mgh_mammo_MIRAI_Base_May20_2019.p
+    # Optional extra checkpoints for a deep ensemble (fine-tuned heads, different seeds)
+    ensemble_members: []
+  outputs: outputs
+
+download:
+  bucket: embed-dataset-open
+  prefix: images/cohort_1/
+  region: us-west-2
+  max_files: null      # set an int to download a subset for testing
+
+preprocessing:
+  # Mirai/AsymMirai were trained on 16-bit PNGs with these statistics.
+  img_mean: 7699.5
+  img_std: 11765.06
+  target_size: [1664, 2048]   # (H, W) as used by the original AsymMirai code
+  expected_bit_depth: 16      # loader refuses 8-bit PNGs unless this is set to 8
+  # Only used when expected_bit_depth == 8 (stats recomputed on your PNGs)
+  img_mean_8bit: null
+  img_std_8bit: null
+
+labels:
+  no_cancer_value: 100        # AsymMirai convention for years_to_cancer of negatives
+  horizons: [1, 2, 3, 4, 5]   # years for AUC
+  # Mirai-style evaluation: a negative at horizon h needs >= h years of follow-up, otherwise it is
+  # censored (excluded) for that horizon. EMBED follow-up is short, so set false to keep all negatives
+  # (more exams, but some "negatives" may be undiagnosed cancers). The report shows n per horizon.
+  require_followup_for_negatives: true
+  screening_only: true
+
+split:
+  # Patient-level split: no patient appears in more than one split
+  calib_fraction: 0.3        # held-out calibration set for conformal prediction / threshold choice
+  finetune_fraction: 0.0     # >0 only if you fine-tune the head with dropout (uq.finetune_head)
+
+model:
+  backbone: mirai            # mirai | resnet18 | convnext_tiny
+  head_dropout: 0.2          # dropout on the latent embeddings (the only stochastic layer by default)
+  backbone_dropout: 0.0      # >0 adds dropout between backbone stages (NOT recommended unless fine-tuned)
+  alignment_space: null      # null | pixel | latent  (keep null to match the released weights)
+
+uq:
+  methods: [mc_dropout, tta, mc_tta]   # also: ensemble (needs ensemble_members)
+  mc_samples: 30
+  tta_samples: 30
+  tta:
+    max_rotation_deg: 5
+    max_translate_frac: 0.03
+    contrast_jitter: 0.05
+    paired: true             # same augmentation for left and right image of a pair (required for asymmetry)
+  batch_size: 2
+  num_workers: 2
+  conditions:                # clean is always run first, then each corruption as a separate condition
+    - {name: clean}
+    - {name: gaussian, severity: 1}
+    - {name: gaussian, severity: 2}
+    - {name: gaussian, severity: 3}
+    - {name: blur, severity: 2}
+    - {name: salt_pepper, severity: 2}
+
+conformal:
+  alpha: 0.1                 # target miscoverage (90% coverage)
+  horizon: 5

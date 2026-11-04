@@ -1,0 +1,24 @@
+# Data and weights are NEVER committed (EMBED licence forbids redistribution; weights are large)
+data/
+weights/
+outputs/
+*.dcm
+*.png
+!docs/**/*.png
+*.pt
+*.p
+*.npz
+*.csv
+!AsymMirai/example_data_format.csv
+!AsymMirai/asymmetry_model/*.csv
+
+# Secrets
+.env
+*.pem
+credentials*
+
+# Python / notebooks
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
