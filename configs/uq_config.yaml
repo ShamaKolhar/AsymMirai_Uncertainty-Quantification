@@ -13,6 +13,7 @@ paths:
   metadata_csv: data/tables/EMBED_OpenData_NUS_Datathon_metadata_reduced.csv
   image_index_csv: data/tables/dicom_index.csv   # written by dicom_to_png
   exam_csv: data/tables/asymmirai_exams.csv      # written by build_metadata (example_data_format.csv layout)
+  planned_exam_csv: data/tables/asymmirai_exams_planned.csv  # build_metadata --plan (before downloading)
   weights:
     # Trained AsymMirai model (full pickled torch model, from the Duke box link in AsymMirai/README.md)
     asymmirai_full_model: weights/asymmirai_full_model.pt
@@ -24,7 +25,8 @@ paths:
 
 download:
   bucket: embed-dataset-open
-  prefix: images/cohort_1/
+  prefix: images/cohort_1/   # what a full download lists
+  path_root: images/         # local DICOM path = dicom_dir / (S3 key minus this root)
   region: us-west-2
   max_files: null      # set an int to download a subset for testing
 
@@ -69,6 +71,7 @@ uq:
     paired: true             # same augmentation for left and right image of a pair (required for asymmetry)
   batch_size: 2
   num_workers: 2
+  chunk_size: 50             # exams per saved chunk; a rerun skips finished chunks (resume)
   conditions:                # clean is always run first, then each corruption as a separate condition
     - {name: clean}
     - {name: gaussian, severity: 1}

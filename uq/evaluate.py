@@ -314,6 +314,10 @@ def run(cfg, run_dir) -> Path:
     if info_p.exists():
         warnings += json.loads(info_p.read_text()).get("warnings", [])
     df = pd.read_csv(run_dir / "predictions_clean.csv")
+    if "enriched" in df and df["enriched"].fillna(False).astype(bool).any():
+        warnings.append("Case-control (enriched) subset: AUC, C-index, risk-coverage and uncertainty-vs-error "
+                        "are valid; calibration (ECE, Brier) and conformal set sizes reflect the enriched "
+                        "prevalence, not a screening population.")
     res, calib, test, rc_tables, sub_tables = evaluate_clean(df, cfg, out, warnings)
     rob, trend = evaluate_robustness(run_dir, cfg, list(res["methods"].keys()))
     rob.to_csv(out / "robustness.csv", index=False)

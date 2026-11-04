@@ -15,7 +15,8 @@ Design:
     between the calibration set (thresholds, conformal) and the evaluation set.
 
 Usage:
-    python -m uq.data.build_metadata --config configs/uq_config.yaml
+    python -m uq.data.build_metadata --config configs/uq_config.yaml            # from converted PNGs
+    python -m uq.data.build_metadata --config configs/free_tier.yaml --plan     # before downloading
 """
 from __future__ import annotations
 
@@ -76,15 +77,28 @@ def derive_exam_labels(clinical: pd.DataFrame, no_cancer_value: float = 100) -> 
     return exams
 
 
-def build(cfg) -> pd.DataFrame:
-    index = pd.read_csv(cfg.path("image_index_csv"))
-    index = index[index["error"].isna() & index["png_path"].notna()]
+def planned_png_path(cfg, anon_dicom_path: str) -> str:
+    """Where dicom_to_png will write the PNG for an EMBED image (same rule as the converter)."""
+    root = cfg["download"].get("path_root", "images/")
+    rel = anon_dicom_path[len(root):] if anon_dicom_path.startswith(root) else anon_dicom_path
+    return str((cfg.path("png_dir") / rel).with_suffix(".png"))
 
+
+def build(cfg, plan: bool = False) -> pd.DataFrame:
+    """plan=False: use the converted-PNG index (images already downloaded).
+    plan=True: build the table from the EMBED metadata alone, with the PNG paths the converter will
+    produce, so a subset can be chosen BEFORE downloading (free-tier workflow)."""
     meta_cols = ["anon_dicom_path", "empi_anon", "acc_anon", "study_date_anon",
                  "ImageLateralityFinal", "ViewPosition", "FinalImageType", "spot_mag"]
     meta = pd.read_csv(cfg.path("metadata_csv"), usecols=lambda col: col in meta_cols, low_memory=False)
 
-    imgs = index.merge(meta, on="anon_dicom_path", how="inner", validate="many_to_one")
+    if plan:
+        imgs = meta.copy()
+        imgs["png_path"] = imgs["anon_dicom_path"].map(lambda p: planned_png_path(cfg, p))
+    else:
+        index = pd.read_csv(cfg.path("image_index_csv"))
+        index = index[index["error"].isna() & index["png_path"].notna()]
+        imgs = index.merge(meta, on="anon_dicom_path", how="inner", validate="many_to_one")
     n0 = len(imgs)
     imgs = imgs[(imgs["FinalImageType"] == "2D")
                 & (imgs["spot_mag"].isna())
@@ -112,12 +126,12 @@ def build(cfg) -> pd.DataFrame:
     df["matched_image"] = np.nan
     df["split"] = patient_split(df["patient_id"], cfg["split"]["calib_fraction"],
                                 cfg["split"]["finetune_fraction"], cfg["seed"])
-    cols = ["exam_id", "patient_id", "laterality", "view", "file_path", "years_to_cancer",
+    cols = ["exam_id", "patient_id", "laterality", "view", "file_path", "anon_dicom_path", "years_to_cancer",
             "years_to_last_followup", "desc", "spot_mag", "matched_image", "split",
             "study_date", "age_at_study", "race", "tissueden"]
     df = df[cols].sort_values(["patient_id", "exam_id", "laterality", "view"]).reset_index(drop=True)
 
-    out = cfg.path("exam_csv")
+    out = cfg.path("planned_exam_csv") if plan else cfg.path("exam_csv")
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out, index=False)
 
@@ -132,8 +146,10 @@ def build(cfg) -> pd.DataFrame:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default=None)
+    ap.add_argument("--plan", action="store_true",
+                    help="build from the EMBED tables only (before downloading images); writes paths.planned_exam_csv")
     args = ap.parse_args()
-    build(load_config(args.config))
+    build(load_config(args.config), plan=args.plan)
 
 
 if __name__ == "__main__":

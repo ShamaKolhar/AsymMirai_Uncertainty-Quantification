@@ -1,0 +1,39 @@
+# Settings for a free Colab / Kaggle GPU (T4) or a CPU-only sanity run.
+# Only the values below differ from uq_config.yaml; everything else is inherited.
+#
+# Workflow (see notebooks/run_quantification.ipynb, "Free tier" path):
+#   1. build_metadata --plan   exam table straight from the EMBED tables (no images needed yet)
+#   2. select_subset           all cancer exams + matched controls, capped at subset.max_exams
+#   3. download_embed --exam-csv  download ONLY the DICOMs for those exams
+#   4. dicom_to_png, inference (resumable), evaluate
+extends: uq_config.yaml
+
+paths:
+  exam_csv: data/tables/asymmirai_exams_subset.csv      # what inference/evaluate read
+  planned_exam_csv: data/tables/asymmirai_exams_planned.csv  # full planned table from the EMBED tables
+
+convert:
+  resize_to_model: true      # PNGs stored at the model input size (1664x2048) - several times smaller
+  delete_dicom: true         # each DICOM is deleted once its PNG is written
+
+split:
+  calib_fraction: 0.4        # small subsets need a larger calibration set for stable thresholds
+
+subset:
+  horizon: 5                 # "case" = cancer diagnosed within this many years
+  controls_per_case: 3       # non-cancer exams sampled per case (same split, similar age)
+  max_exams: 400             # hard cap on exams (~1,600 images)
+  max_cases: null            # optional cap on cases
+  seed: 42
+
+uq:
+  methods: [mc_dropout, tta]   # mc_dropout is cheap (backbone runs once per exam); tta is the expensive one
+  mc_samples: 30
+  tta_samples: 8
+  batch_size: 1
+  num_workers: 2
+  chunk_size: 25             # results saved every 25 exams -> a disconnect loses at most one chunk
+  run_name: free_run         # fixed name, so re-running the same cell resumes instead of starting over
+  conditions:
+    - {name: clean}
+    - {name: gaussian, severity: 2}

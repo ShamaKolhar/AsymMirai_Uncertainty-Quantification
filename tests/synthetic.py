@@ -61,7 +61,7 @@ def make(root: Path, n_patients: int = 30, exams_per_patient: int = 2, cancer_fr
                 for view in ("CC", "MLO"):
                     rel = f"{empi}/1.2.{acc}/1.3.{acc}{lat}{view}/1.4.{acc}{lat}{view}.dcm"
                     arr = breast(h, w, lat, rng, lesion=cancer and lat == cancer_side)
-                    _write_dicom(root / "data/images" / rel, arr, monochrome1=bool(rng.random() < 0.2), lat=lat, view=view)
+                    _write_dicom(root / "data/images/cohort_1" / rel, arr, monochrome1=bool(rng.random() < 0.2), lat=lat, view=view)
                     meta_rows.append({"anon_dicom_path": "images/cohort_1/" + rel, "empi_anon": empi, "acc_anon": acc,
                                       "study_date_anon": str(sdate), "ImageLateralityFinal": lat, "ViewPosition": view,
                                       "FinalImageType": "2D", "spot_mag": np.nan})
