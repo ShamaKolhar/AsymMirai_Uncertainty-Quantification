@@ -1,7 +1,7 @@
 # Data and weights are NEVER committed (EMBED licence forbids redistribution; weights are large)
-data/
-weights/
-outputs/
+/data/
+/weights/
+/outputs/
 *.dcm
 *.png
 !docs/**/*.png
